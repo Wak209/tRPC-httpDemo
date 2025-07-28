@@ -31,6 +31,7 @@ std::string GetBaseName(const std::string& filepath) {
   return (pos != std::string::npos) ? filepath.substr(pos + 1) : filepath;
 }
 
+bool enable_limit = true;
 constexpr std::size_t rate_limit_bytes_per_sec = 900 * 1024; // 512KB/s
 
 namespace http::demo {
@@ -107,21 +108,16 @@ namespace http::demo {
         auto now = std::chrono::steady_clock::now();
         auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_send_time).count();
 
-        if (duration_ms > 0) {
-            std::size_t actual_rate = sent_bytes * 1000 / duration_ms; // bytes/sec
-            if (actual_rate > rate_limit_bytes_per_sec) {
-                std::size_t expected_duration = sent_bytes * 1000 / rate_limit_bytes_per_sec;
-                std::size_t extra_delay = expected_duration > duration_ms ? expected_duration - duration_ms : 0;
-                std::this_thread::sleep_for(std::chrono::milliseconds(extra_delay));
-            }
-            last_send_time = std::chrono::steady_clock::now();
-            sent_bytes = 0;
+        if (enable_limit && duration_ms > 0) {
+          std::size_t actual_rate = sent_bytes * 1000 / duration_ms; // bytes/sec
+          if (actual_rate > rate_limit_bytes_per_sec) {
+            std::size_t expected_duration = sent_bytes * 1000 / rate_limit_bytes_per_sec;
+            std::size_t extra_delay = expected_duration > duration_ms ? expected_duration - duration_ms : 0;
+            std::this_thread::sleep_for(std::chrono::milliseconds(extra_delay));
+          }
+          last_send_time = std::chrono::steady_clock::now();
+          sent_bytes = 0;
         }
-
-
-
-
-
 
 
         continue;

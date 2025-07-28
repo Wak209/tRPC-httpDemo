@@ -35,6 +35,7 @@ DEFINE_string(addr, "127.0.0.1:24858", "ip:port");
 DEFINE_string(dst_path, "download_dst.bin", "file path to store the content which will be downloaded from the server");
 
 DEFINE_bool(enable_download_hash, true, "Enable SHA256 hash verification during download");
+DEFINE_bool(enable_download_limit, true, "Enable SHA256 hash verification during download");
 DEFINE_string(multi_download_dir, "./downloads", "Directory to save multiple downloaded files");
 
 
@@ -110,8 +111,11 @@ bool Download(const HttpServiceProxyPtr& proxy, const std::string& url, const st
   // 读取响应内容块（直到 EOF）
   for (;;) {
     ::trpc::NoncontiguousBuffer buffer;
-    //status = stream.Read(buffer, kBufferSize);
-    status =  stream.Read(buffer, kBufferSize, std::chrono::seconds(3));
+    if(FLAGS_enable_download_limit)
+      status =  stream.Read(buffer, kBufferSize, std::chrono::seconds(3));
+    else
+      status = stream.Read(buffer, kBufferSize);
+   
     if (status.OK()) {
       nread += buffer.ByteSize();
 
@@ -147,7 +151,7 @@ bool Download(const HttpServiceProxyPtr& proxy, const std::string& url, const st
     }
     else if (status.ToString().find("timeout") != std::string::npos){
       TRPC_FMT_WARN("[Download Request] ⚠️ Read timed out, retrying...");
-      // 可以做：continue 重试，或统计重试次数后退出
+
       continue;
     }
     TRPC_FMT_ERROR("[Download Request]  failed to read response content from client : {}", status.ToString());
